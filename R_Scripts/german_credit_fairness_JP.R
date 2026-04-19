@@ -1,55 +1,27 @@
 # =============================================================================
 # CRISP-DM: Fairness & Bias Analysis
 # German Credit — Does the model treat gender and age groups equitably?
-# Run AFTER germal_credit_modelling_FB.R  (script 6)
-# Objects expected: gc_df, rf_model, X_test, y_test, train_idx, test_df
-# Author: Jamie Price
+# Run AFTER germal_credit_modelling_FB.R
 # =============================================================================
 
 library(dplyr)
 library(ggplot2)
+library(tidyr)
 
-# install.packages("dplyr") # if not already installed
-
-
-# =============================================================================
-# 1. VERIFY PREREQUISITE OBJECTS
-# =============================================================================
+dir.create("outputs", showWarnings = FALSE)
 
 stopifnot(exists("gc_df"), exists("rf_model"), exists("X_test"), exists("y_test"))
 stopifnot(exists("train_idx"))
 
 cat("Fairness analysis: prerequisite check passed.\n\n")
 
-
-# =============================================================================
-# 2. RECONSTRUCT TEST SET WITH ORIGINAL FACTOR LABELS
-#    The test set in gc_df retains the readable factor labels (e.g. "Male single")
-#    while X_test is encoded numerics. We need the original labels for subgroup
-#    analysis but the encoded version for model predictions.
-# =============================================================================
-
-# train_idx was created by createDataPartition in Flora's script 2
-# Rows NOT in train_idx are the test set
 keep_cols_fair <- c("marital_status", "age_yrs", "target", "target_bad")
-
-# gc_model was created from gc_df using keep_cols in Flora's script 2
-# The row indices correspond to gc_df rows via the modelling subset
 test_labels <- gc_df[-train_idx, keep_cols_fair]
 test_labels <- test_labels[, keep_cols_fair]
 
 cat("Test set for fairness analysis:", nrow(test_labels), "rows\n")
 
-
-# =============================================================================
-# 3. DERIVE GENDER FROM MARITAL STATUS
-#    The German Credit dataset does not have a standalone gender column.
-#    However, Flora's wrangled marital_status field encodes gender:
-#      "Male divorced/separated", "Male single", "Male married/widowed"
-#      "Female divorced/separated/married", "Female single"
-#    We extract a binary gender variable from this.
-# =============================================================================
-
+# gender proxy
 test_labels$gender <- ifelse(
   grepl("^Female", test_labels$marital_status), "Female", "Male"
 )
@@ -58,125 +30,86 @@ cat("\nGender distribution in test set:\n")
 print(table(test_labels$gender))
 cat("\n")
 
-
-# =============================================================================
-# 4. DERIVE AGE GROUPS
-#    Binning age into meaningful groups allows us to check whether the model
-#    performs differently across age brackets — important because younger
-#    applicants typically have shorter credit histories, which may disadvantage
-#    them in the model's predictions.
-# =============================================================================
-
+# age groups
 test_labels$age_group <- cut(
   test_labels$age_yrs,
   breaks = c(0, 25, 35, 50, 100),
   labels = c("Under 25", "25-35", "36-50", "Over 50"),
-  right  = TRUE
+  right = TRUE
 )
 
 cat("Age group distribution in test set:\n")
 print(table(test_labels$age_group))
 cat("\n")
 
-
-# =============================================================================
-# 5. ADD MODEL PREDICTIONS TO TEST LABELS
-#    Using Flora's Random Forest (the best performing model by AUC)
-# =============================================================================
-
+# predictions
 test_labels$pred_class <- as.character(predict(rf_model, newdata = X_test))
-test_labels$pred_prob  <- predict(rf_model, newdata = X_test, type = "prob")[, "Bad"]
-
-# Actual outcome as character for consistent comparisons
+test_labels$pred_prob <- predict(rf_model, newdata = X_test, type = "prob")[, "Bad"]
 test_labels$actual <- as.character(test_labels$target)
 
 cat("Prediction distribution:\n")
 print(table(Predicted = test_labels$pred_class, Actual = test_labels$actual))
 cat("\n")
 
-
-# =============================================================================
-# 6. SUBGROUP PERFORMANCE METRICS
-#    For each gender and age group, calculate:
-#    - Accuracy: proportion of correct predictions
-#    - FPR (False Positive Rate): proportion of Good applicants wrongly flagged as Bad
-#    - FNR (False Negative Rate): proportion of Bad applicants missed (classified as Good)
-#    - Selection rate: proportion predicted Bad (used for demographic parity)
-# =============================================================================
-
+# subgroup metrics
 calc_subgroup_metrics <- function(df, group_col) {
   df %>%
     group_by(.data[[group_col]]) %>%
     summarise(
-      n             = n(),
-      n_good        = sum(actual == "Good"),
-      n_bad         = sum(actual == "Bad"),
-      accuracy      = round(mean(pred_class == actual), 3),
-      # FPR: of the truly Good, how many are wrongly predicted Bad?
-      fpr           = round(sum(actual == "Good" & pred_class == "Bad") /
-                              max(sum(actual == "Good"), 1), 3),
-      # FNR: of the truly Bad, how many are missed (predicted Good)?
-      fnr           = round(sum(actual == "Bad" & pred_class == "Good") /
-                              max(sum(actual == "Bad"), 1), 3),
-      # Selection rate: proportion predicted Bad
+      n = n(),
+      n_good = sum(actual == "Good"),
+      n_bad = sum(actual == "Bad"),
+      accuracy = round(mean(pred_class == actual), 3),
+      fpr = round(sum(actual == "Good" & pred_class == "Bad") /
+                    max(sum(actual == "Good"), 1), 3),
+      fnr = round(sum(actual == "Bad" & pred_class == "Good") /
+                    max(sum(actual == "Bad"), 1), 3),
       selection_rate = round(mean(pred_class == "Bad"), 3),
-      # Mean predicted probability of Bad
-      mean_prob_bad  = round(mean(pred_prob), 3),
-      .groups       = "drop"
+      mean_prob_bad = round(mean(pred_prob), 3),
+      .groups = "drop"
     )
 }
 
 gender_metrics <- calc_subgroup_metrics(test_labels, "gender")
-age_metrics    <- calc_subgroup_metrics(test_labels, "age_group")
+age_metrics <- calc_subgroup_metrics(test_labels, "age_group")
 
 cat("=================================================================\n")
 cat("SUBGROUP PERFORMANCE — By Gender\n")
 cat("=================================================================\n")
 print(as.data.frame(gender_metrics))
 cat("\n")
+write.csv(gender_metrics, "outputs/fairness_gender_metrics.csv", row.names = FALSE)
 
 cat("=================================================================\n")
 cat("SUBGROUP PERFORMANCE — By Age Group\n")
 cat("=================================================================\n")
 print(as.data.frame(age_metrics))
 cat("\n")
+write.csv(age_metrics, "outputs/fairness_age_metrics.csv", row.names = FALSE)
 
-
-# =============================================================================
-# 7. FAIRNESS METRICS
-#    Three standard fairness criteria from the FAT (Fairness, Accountability,
-#    Transparency) framework:
-#
-#    Demographic Parity: selection rates should be similar across groups
-#    Equal Opportunity: FNR (miss rates for Bad class) should be similar
-#    Predictive Parity: precision (of Bad predictions) should be similar
-# =============================================================================
-
+# fairness metrics
 cat("=================================================================\n")
 cat("FAIRNESS METRICS — Gender\n")
 cat("=================================================================\n")
 
-# Demographic parity — compare selection rates
 cat("\n1. Demographic Parity (selection rate should be similar):\n")
 cat("   Male selection rate:  ", gender_metrics$selection_rate[gender_metrics$gender == "Male"], "\n")
 cat("   Female selection rate:", gender_metrics$selection_rate[gender_metrics$gender == "Female"], "\n")
 
 dp_ratio <- min(gender_metrics$selection_rate) / max(gender_metrics$selection_rate)
 cat("   Ratio (closer to 1 = fairer):", round(dp_ratio, 3), "\n")
-# The 4/5ths rule (EEOC guideline): ratio below 0.8 suggests adverse impact
+
 if (dp_ratio < 0.8) {
   cat("   WARNING: Ratio below 0.8 — potential adverse impact (4/5ths rule)\n")
 } else {
   cat("   Passes the 4/5ths rule threshold\n")
 }
 
-# Equal opportunity — compare FNR
 cat("\n2. Equal Opportunity (FNR should be similar):\n")
 cat("   Male FNR:  ", gender_metrics$fnr[gender_metrics$gender == "Male"], "\n")
 cat("   Female FNR:", gender_metrics$fnr[gender_metrics$gender == "Female"], "\n")
 cat("   Difference:", abs(diff(gender_metrics$fnr)), "\n")
 
-# Predictive parity — compare precision for Bad predictions
 cat("\n3. Predictive Parity (precision should be similar):\n")
 gender_precision <- test_labels %>%
   filter(pred_class == "Bad") %>%
@@ -188,14 +121,9 @@ gender_precision <- test_labels %>%
   )
 print(as.data.frame(gender_precision))
 cat("\n")
+write.csv(gender_precision, "outputs/fairness_gender_precision.csv", row.names = FALSE)
 
-
-# =============================================================================
-# 8. ACTUAL BAD RATES VS PREDICTED BAD RATES
-#    If the model is well-calibrated across groups, the predicted bad rate
-#    should roughly match the actual bad rate within each subgroup.
-# =============================================================================
-
+# calibration
 cat("=================================================================\n")
 cat("CALIBRATION CHECK — Actual vs Predicted Bad Rates\n")
 cat("=================================================================\n\n")
@@ -203,23 +131,22 @@ cat("=================================================================\n\n")
 calibration <- test_labels %>%
   group_by(gender, age_group) %>%
   summarise(
-    n             = n(),
-    actual_bad_rate   = round(mean(actual == "Bad"), 3),
+    n = n(),
+    actual_bad_rate = round(mean(actual == "Bad"), 3),
     predicted_bad_rate = round(mean(pred_class == "Bad"), 3),
-    mean_prob_bad     = round(mean(pred_prob), 3),
+    mean_prob_bad = round(mean(pred_prob), 3),
     .groups = "drop"
   ) %>%
-  filter(n >= 10)  # only show groups with enough data
+  filter(n >= 10)
 
 print(as.data.frame(calibration))
 cat("\n")
-
+write.csv(calibration, "outputs/fairness_calibration.csv", row.names = FALSE)
 
 # =============================================================================
-# 9. VISUALISATIONS
+# VISUALISATIONS
 # =============================================================================
 
-# --- Chart 1: Selection rate by gender ---
 p1 <- ggplot(gender_metrics, aes(x = gender, y = selection_rate, fill = gender)) +
   geom_col(alpha = 0.85, width = 0.5) +
   geom_text(aes(label = selection_rate), vjust = -0.5, size = 5, fontface = "bold") +
@@ -233,8 +160,8 @@ p1 <- ggplot(gender_metrics, aes(x = gender, y = selection_rate, fill = gender))
     x = NULL, y = "Selection Rate"
   )
 print(p1)
+ggsave("outputs/fairness_selection_rate_gender.png", plot = p1, width = 7, height = 5, dpi = 300)
 
-# --- Chart 2: FPR by gender ---
 p2 <- ggplot(gender_metrics, aes(x = gender, y = fpr, fill = gender)) +
   geom_col(alpha = 0.85, width = 0.5) +
   geom_text(aes(label = fpr), vjust = -0.5, size = 5, fontface = "bold") +
@@ -248,8 +175,8 @@ p2 <- ggplot(gender_metrics, aes(x = gender, y = fpr, fill = gender)) +
     x = NULL, y = "False Positive Rate"
   )
 print(p2)
+ggsave("outputs/fairness_fpr_gender.png", plot = p2, width = 7, height = 5, dpi = 300)
 
-# --- Chart 3: Accuracy by age group ---
 p3 <- ggplot(age_metrics, aes(x = age_group, y = accuracy, fill = age_group)) +
   geom_col(alpha = 0.85, width = 0.6) +
   geom_text(aes(label = accuracy), vjust = -0.5, size = 4.5, fontface = "bold") +
@@ -265,14 +192,14 @@ p3 <- ggplot(age_metrics, aes(x = age_group, y = accuracy, fill = age_group)) +
     x = NULL, y = "Accuracy"
   )
 print(p3)
+ggsave("outputs/fairness_accuracy_age.png", plot = p3, width = 7, height = 5, dpi = 300)
 
-# --- Chart 4: Actual vs predicted bad rate by age group ---
 age_compare <- age_metrics %>%
   select(age_group, actual = n_bad, predicted = selection_rate) %>%
   mutate(actual_rate = round(actual / age_metrics$n, 3)) %>%
   select(age_group, actual_rate, predicted)
 
-age_long <- tidyr::pivot_longer(
+age_long <- pivot_longer(
   age_compare,
   cols = c(actual_rate, predicted),
   names_to = "type",
@@ -290,11 +217,17 @@ p4 <- ggplot(age_long, aes(x = age_group, y = rate, fill = type)) +
     x = NULL, y = "Rate", fill = NULL
   )
 print(p4)
+ggsave("outputs/fairness_actual_vs_predicted_age.png", plot = p4, width = 8, height = 5, dpi = 300)
 
-
-# =============================================================================
-# 10. SUMMARY
-# =============================================================================
+# summary csv
+fairness_summary <- data.frame(
+  male_selection_rate = gender_metrics$selection_rate[gender_metrics$gender == "Male"],
+  female_selection_rate = gender_metrics$selection_rate[gender_metrics$gender == "Female"],
+  demographic_parity_ratio = round(dp_ratio, 3),
+  male_fnr = gender_metrics$fnr[gender_metrics$gender == "Male"],
+  female_fnr = gender_metrics$fnr[gender_metrics$gender == "Female"]
+)
+write.csv(fairness_summary, "outputs/fairness_summary.csv", row.names = FALSE)
 
 cat("\n=================================================================\n")
 cat("FAIRNESS ANALYSIS SUMMARY\n")

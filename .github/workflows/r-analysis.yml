@@ -1,0 +1,89 @@
+name: R Analysis Pipeline
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - master
+      - develop
+      - "feat/**"
+  pull_request:
+
+jobs:
+  run-analysis:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libcurl4-openssl-dev libssl-dev libxml2-dev libfontconfig1-dev libharfbuzz-dev libfribidi-dev libfreetype6-dev libpng-dev libtiff5-dev libjpeg-dev
+
+      - name: Install R packages
+        shell: Rscript {0}
+        run: |
+          install.packages(c(
+            "caret",
+            "randomForest",
+            "pROC",
+            "ggplot2",
+            "dplyr",
+            "fastDummies",
+            "reshape2",
+            "smotefamily",
+            "e1071",
+            "rpart",
+            "tidyr"
+          ), repos = "https://cloud.r-project.org")
+
+      - name: Create outputs directory
+        run: mkdir -p outputs
+
+      - name: Run data wrangling
+        shell: Rscript {0}
+        run: |
+          source("R_Scripts/german_credit_wrangle_draft_JT.R")
+
+      - name: Run data preparation
+        shell: Rscript {0}
+        run: |
+          source("R_Scripts/german_credit_data_prep_FB.R")
+
+      - name: Run modelling
+        shell: Rscript {0}
+        run: |
+          source("R_Scripts/german_credit_modelling_FB.R")
+
+      - name: Run extended models
+        shell: Rscript {0}
+        run: |
+          source("R_Scripts/german_credit_models_JP.R")
+
+      - name: Run fairness analysis
+        shell: Rscript {0}
+        run: |
+          source("R_Scripts/german_credit_fairness_JP.R")
+
+      - name: Run synthesis
+        shell: Rscript {0}
+        run: |
+          source("R_Scripts/german_credit_synthesis_FB.R")
+
+      - name: Collect outputs
+        run: |
+          find . -maxdepth 1 -type f \( -name "*.csv" -o -name "*.rds" -o -name "*.png" -o -name "*.pdf" \) -exec cp {} outputs/ \; || true
+
+      - name: Upload outputs artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: german-credit-analysis-outputs
+          path: outputs/
