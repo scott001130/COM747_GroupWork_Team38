@@ -26,32 +26,41 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libcurl4-openssl-dev libssl-dev libxml2-dev libfontconfig1-dev libharfbuzz-dev libfribidi-dev libfreetype6-dev libpng-dev libtiff5-dev libjpeg-dev
+          sudo apt-get install -y \
+            libcurl4-openssl-dev \
+            libssl-dev \
+            libxml2-dev \
+            libfontconfig1-dev \
+            libharfbuzz-dev \
+            libfribidi-dev \
+            libfreetype6-dev \
+            libpng-dev \
+            libtiff5-dev \
+            libjpeg-dev
 
-      - name: Install R packages
-        shell: Rscript {0}
-        run: |
-          install.packages(c(
-            "caret",
-            "randomForest",
-            "pROC",
-            "ggplot2",
-            "dplyr",
-            "fastDummies",
-            "reshape2",
-            "smotefamily",
-            "e1071",
-            "rpart",
-            "tidyr"
-          ), repos = "https://cloud.r-project.org")
+      - name: Set up R dependencies
+        uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          packages: |
+            any::caret
+            any::randomForest
+            any::pROC
+            any::ggplot2
+            any::dplyr
+            any::fastDummies
+            any::reshape2
+            any::smotefamily
+            any::e1071
+            any::rpart
+            any::tidyr
 
       - name: Create outputs directory
         run: mkdir -p outputs
 
-      - name: Run data wrangling
+      - name: Run wrangling
         shell: Rscript {0}
         run: |
-          source("R_Scripts/german_credit_wrangle_draft_JT.R")
+          source("R_Scripts/german_credit_wrangle_JT.R")
 
       - name: Run data preparation
         shell: Rscript {0}
@@ -77,10 +86,6 @@ jobs:
         shell: Rscript {0}
         run: |
           source("R_Scripts/german_credit_synthesis_FB.R")
-
-      - name: Collect outputs
-        run: |
-          find . -maxdepth 1 -type f \( -name "*.csv" -o -name "*.rds" -o -name "*.png" -o -name "*.pdf" \) -exec cp {} outputs/ \; || true
 
       - name: Upload outputs artifact
         uses: actions/upload-artifact@v4
