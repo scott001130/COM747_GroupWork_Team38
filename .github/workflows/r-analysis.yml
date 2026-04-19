@@ -57,34 +57,14 @@ jobs:
       - name: Create outputs directory
         run: mkdir -p outputs
 
-      - name: Run wrangling
+      - name: Run full analysis pipeline
         shell: Rscript {0}
         run: |
           source("R_Scripts/german_credit_wrangle_JT.R")
-
-      - name: Run data preparation
-        shell: Rscript {0}
-        run: |
           source("R_Scripts/german_credit_data_prep_FB.R")
-
-      - name: Run modelling
-        shell: Rscript {0}
-        run: |
           source("R_Scripts/german_credit_modelling_FB.R")
-
-      - name: Run extended models
-        shell: Rscript {0}
-        run: |
           source("R_Scripts/german_credit_models_JP.R")
-
-      - name: Run fairness analysis
-        shell: Rscript {0}
-        run: |
           source("R_Scripts/german_credit_fairness_JP.R")
-
-      - name: Run synthesis
-        shell: Rscript {0}
-        run: |
           source("R_Scripts/german_credit_synthesis_FB.R")
 
       - name: Upload outputs artifact
