@@ -27,6 +27,20 @@ lr_model <- glm(
 
 summary(lr_model)
 
+# -----------------------------------------------------------------------------
+# LOGISTIC REGRESSION: coefficients + odds ratios
+# -----------------------------------------------------------------------------
+
+lr_odds_ratios <- data.frame(
+  feature = names(coef(lr_model)),
+  coefficient = as.numeric(coef(lr_model)),
+  odds_ratio = as.numeric(exp(coef(lr_model)))
+)
+
+print(lr_odds_ratios)
+write.csv(lr_odds_ratios, "outputs/logistic_regression_odds_ratios.csv", row.names = FALSE)
+
+# Predict probabilities on test set
 lr_probs <- predict(lr_model, newdata = test_df, type = "response")
 lr_pred <- factor(ifelse(lr_probs >= 0.5, "Bad", "Good"), levels = c("Good", "Bad"))
 
@@ -39,6 +53,7 @@ cat("AUC:", round(auc(lr_roc), 3), "\n")
 
 lr_metrics <- data.frame(
   Model = "Logistic Regression",
+  Threshold = 0.50,
   Accuracy = round(lr_cm$overall["Accuracy"], 3),
   Sensitivity = round(lr_cm$byClass["Sensitivity"], 3),
   Specificity = round(lr_cm$byClass["Specificity"], 3),
@@ -47,6 +62,72 @@ lr_metrics <- data.frame(
   AUC = round(as.numeric(auc(lr_roc)), 3)
 )
 write.csv(lr_metrics, "outputs/logistic_regression_metrics.csv", row.names = FALSE)
+
+# -----------------------------------------------------------------------------
+# LOGISTIC REGRESSION: threshold tuning
+# -----------------------------------------------------------------------------
+
+lr_thresholds <- seq(0.2, 0.7, by = 0.01)
+
+lr_threshold_results <- sapply(lr_thresholds, function(t) {
+  pred <- factor(ifelse(lr_probs >= t, "Bad", "Good"), levels = c("Good", "Bad"))
+  cm <- confusionMatrix(pred, y_test, positive = "Bad")
+  c(
+    threshold = t,
+    precision = unname(cm$byClass["Precision"]),
+    recall = unname(cm$byClass["Recall"]),
+    f1 = unname(cm$byClass["F1"])
+  )
+})
+
+lr_threshold_df <- as.data.frame(t(lr_threshold_results))
+lr_threshold_df[] <- lapply(lr_threshold_df, as.numeric)
+
+lr_best_idx <- which.max(lr_threshold_df$f1)
+lr_best_t <- lr_threshold_df$threshold[lr_best_idx]
+
+write.csv(lr_threshold_df, "outputs/logistic_regression_threshold_tuning.csv", row.names = FALSE)
+
+cat("\nBest Logistic Regression threshold (max F1):", lr_best_t, "\n")
+cat("At this threshold:\n")
+cat("  Precision:", round(lr_threshold_df$precision[lr_best_idx], 3), "\n")
+cat("  Recall:   ", round(lr_threshold_df$recall[lr_best_idx], 3), "\n")
+cat("  F1:       ", round(lr_threshold_df$f1[lr_best_idx], 3), "\n")
+
+lr_pred_tuned <- factor(ifelse(lr_probs >= lr_best_t, "Bad", "Good"), levels = c("Good", "Bad"))
+
+cat("\n--- Logistic Regression (tuned threshold =", lr_best_t, ") ---\n")
+lr_tuned_cm <- confusionMatrix(lr_pred_tuned, y_test, positive = "Bad")
+print(lr_tuned_cm)
+
+lr_tuned_metrics <- data.frame(
+  Model = "Logistic Regression Tuned Threshold",
+  Threshold = lr_best_t,
+  Accuracy = round(lr_tuned_cm$overall["Accuracy"], 3),
+  Sensitivity = round(lr_tuned_cm$byClass["Sensitivity"], 3),
+  Specificity = round(lr_tuned_cm$byClass["Specificity"], 3),
+  Precision = round(lr_tuned_cm$byClass["Precision"], 3),
+  F1 = round(lr_tuned_cm$byClass["F1"], 3),
+  AUC = round(as.numeric(auc(lr_roc)), 3)
+)
+write.csv(lr_tuned_metrics, "outputs/logistic_regression_tuned_metrics.csv", row.names = FALSE)
+
+p_lr_thresh <- ggplot(lr_threshold_df, aes(x = threshold)) +
+  geom_line(aes(y = precision, colour = "Precision"), linewidth = 1) +
+  geom_line(aes(y = recall, colour = "Recall"), linewidth = 1) +
+  geom_line(aes(y = f1, colour = "F1"), linewidth = 1, linetype = "dashed") +
+  geom_vline(xintercept = lr_best_t, linetype = "dotted", colour = "gray50") +
+  scale_colour_manual(values = c("Precision" = "#534AB7", "Recall" = "#D85A30", "F1" = "#1D9E75")) +
+  labs(
+    title = "Logistic regression: precision / recall tradeoff by threshold",
+    x = "Classification threshold",
+    y = "Score",
+    colour = NULL
+  ) +
+  theme_minimal()
+
+print(p_lr_thresh)
+ggsave("outputs/logistic_regression_threshold_tradeoff.png", plot = p_lr_thresh, width = 8, height = 5, dpi = 300)
 
 # =============================================================================
 # MODEL 2: Random forest
@@ -75,6 +156,7 @@ cat("AUC:", round(auc(rf_roc), 3), "\n")
 
 rf_metrics <- data.frame(
   Model = "Random Forest",
+  Threshold = 0.50,
   Accuracy = round(rf_cm$overall["Accuracy"], 3),
   Sensitivity = round(rf_cm$byClass["Sensitivity"], 3),
   Specificity = round(rf_cm$byClass["Specificity"], 3),
@@ -90,7 +172,7 @@ write.csv(rf_metrics, "outputs/random_forest_metrics.csv", row.names = FALSE)
 
 png("outputs/roc_lr_vs_rf.png", width = 1200, height = 900, res = 150)
 plot(lr_roc, col = "#534AB7", lwd = 2,
-     main = "ROC curves — German Credit",
+     main = "ROC curves - German Credit",
      xlab = "False positive rate", ylab = "True positive rate")
 plot(rf_roc, col = "#1D9E75", lwd = 2, add = TRUE)
 abline(a = 0, b = 1, lty = 2, col = "gray70")
@@ -108,7 +190,7 @@ dev.off()
 # =============================================================================
 
 png("outputs/rf_feature_importance.png", width = 1200, height = 900, res = 150)
-varImpPlot(rf_model, type = 1, main = "Feature importance — mean decrease accuracy")
+varImpPlot(rf_model, type = 1, main = "Feature importance - mean decrease accuracy")
 dev.off()
 
 importance_df <- as.data.frame(importance(rf_model, type = 1))
@@ -179,7 +261,8 @@ rf_tuned_metrics <- data.frame(
   Sensitivity = round(rf_tuned_cm$byClass["Sensitivity"], 3),
   Specificity = round(rf_tuned_cm$byClass["Specificity"], 3),
   Precision = round(rf_tuned_cm$byClass["Precision"], 3),
-  F1 = round(rf_tuned_cm$byClass["F1"], 3)
+  F1 = round(rf_tuned_cm$byClass["F1"], 3),
+  AUC = round(as.numeric(auc(rf_roc)), 3)
 )
 write.csv(rf_tuned_metrics, "outputs/random_forest_tuned_metrics.csv", row.names = FALSE)
 
