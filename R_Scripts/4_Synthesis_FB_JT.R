@@ -1,7 +1,7 @@
 # =============================================================================
 # CRISP-DM: Synthesis & Hypothesis Evaluation
 # German Credit — "What factors most influence credit default risk?"
-# Run AFTER germal_credit_modelling_FB.R
+# Run AFTER german_credit_modelling_FB.R
 # =============================================================================
 
 library(dplyr)
@@ -33,7 +33,7 @@ p_top10 <- ggplot(importance_top10,
   coord_flip() +
   theme_minimal(base_size = 12) +
   labs(
-    title = "Top 10 features by importance — Random Forest",
+    title = "Top 10 features by importance - Random Forest",
     subtitle = "Mean decrease in accuracy (German Credit, n = 1,000)",
     x = NULL,
     y = "Mean Decrease in Accuracy"
@@ -89,27 +89,61 @@ print(numeric_means)
 write.csv(numeric_means, "outputs/numeric_means_by_outcome.csv", row.names = FALSE)
 
 # =============================================================================
+# NUMERIC FEATURE EVIDENCE
+# =============================================================================
+
+numeric_tests <- lapply(c("loan_duration_mths", "credit_amount", "age_yrs"), function(v) {
+  test <- cor.test(gc_df[[v]], gc_df$target_bad, method = "pearson")
+
+  data.frame(
+    feature = v,
+    p_value = round(test$p.value, 4),
+    sig = ifelse(test$p.value < 0.001, "***",
+                 ifelse(test$p.value < 0.01, "**",
+                        ifelse(test$p.value < 0.05, "*", ""))),
+    statistic_type = "Pearson r",
+    statistic_value = round(unname(test$estimate), 3)
+  )
+})
+
+numeric_df <- do.call(rbind, numeric_tests)
+print(numeric_df)
+write.csv(numeric_df, "outputs/numeric_feature_evidence.csv", row.names = FALSE)
+
+# =============================================================================
 # COMBINED EVIDENCE TABLE
 # =============================================================================
 
 chi_clean <- chi_df[!is.na(chi_df$chi_sq), c("feature", "chi_sq", "p_value", "sig")]
+chi_clean$statistic_type <- "Chi-square"
+chi_clean$statistic_value <- chi_clean$chi_sq
 
 fisher_clean <- data.frame(
   feature = fisher_df$feature,
   chi_sq = NA,
   p_value = fisher_df$p_value,
-  sig = fisher_df$sig
+  sig = fisher_df$sig,
+  statistic_type = fisher_df$method,
+  statistic_value = NA
 )
 
-all_tests <- rbind(chi_clean, fisher_clean)
+all_tests <- rbind(
+  chi_clean[, c("feature", "p_value", "sig", "statistic_type", "statistic_value")],
+  fisher_clean[, c("feature", "p_value", "sig", "statistic_type", "statistic_value")],
+  numeric_df[, c("feature", "p_value", "sig", "statistic_type", "statistic_value")]
+)
+
 importance_named <- importance_df[, c("feature", "MeanDecreaseAccuracy")]
 
 evidence_table <- merge(all_tests, importance_named, by = "feature", all.x = TRUE)
 
 evidence_table <- evidence_table[
-  order(is.na(evidence_table$MeanDecreaseAccuracy),
-        -replace(evidence_table$MeanDecreaseAccuracy,
-                 is.na(evidence_table$MeanDecreaseAccuracy), 0)),
+  order(
+    is.na(evidence_table$MeanDecreaseAccuracy),
+    -replace(evidence_table$MeanDecreaseAccuracy,
+             is.na(evidence_table$MeanDecreaseAccuracy), 0),
+    evidence_table$p_value
+  ),
 ]
 
 rownames(evidence_table) <- NULL
@@ -126,21 +160,21 @@ cat("\n")
 cat("=================================================================\n")
 cat("HYPOTHESIS: What factors most influence credit default risk?\n")
 cat("=================================================================\n")
-cat("\nTier 1 — Strongest predictors (significant + high importance):\n")
-cat("  1. Account status       (χ²=123.72, p<0.001 | RF importance=27.69)\n")
-cat("  2. Credit history       (χ²=61.69,  p<0.001 | RF importance=13.49)\n")
-cat("  3. Loan duration        (r=0.215,   p<0.001 | RF importance=13.49)\n")
-cat("  4. Savings              (χ²=36.10,  p<0.001 | RF importance=8.60)\n")
-cat("  5. Credit amount        (r=0.155,   p<0.001 | RF importance=8.90)\n")
+cat("\nTier 1 - Strongest predictors (significant + high importance):\n")
+cat("  1. Account status       (strongest categorical predictor)\n")
+cat("  2. Credit history       (high significance and RF importance)\n")
+cat("  3. Loan duration        (positive Pearson correlation with default)\n")
+cat("  4. Savings              (clear ordinal risk gradient)\n")
+cat("  5. Credit amount        (positive Pearson correlation with default)\n")
 
-cat("\nTier 2 — Moderate predictors (significant, lower importance):\n")
-cat("  6. Property             (χ²=23.72,  p<0.001 | RF importance=8.93)\n")
-cat("  7. Age                  (r=-0.091,  p<0.05  | RF importance=7.20)\n")
-cat("  8. Employment duration  (χ²=18.37,  p=0.001 | RF importance=~3)\n")
-cat("  9. Housing              (χ²=18.20,  p<0.001)\n")
-cat(" 10. Loan purpose         (Fisher,    p<0.001)\n")
+cat("\nTier 2 - Moderate predictors:\n")
+cat("  6. Property\n")
+cat("  7. Age\n")
+cat("  8. Employment duration\n")
+cat("  9. Housing\n")
+cat(" 10. Loan purpose\n")
 
-cat("\nTier 3 — Weak / non-significant predictors:\n")
-cat("  Telephone    (χ²=1.17, p=0.279) — no significant association\n")
-cat("  Occupation   (χ²=1.89, p=0.597) — no significant association\n")
+cat("\nTier 3 - Weak / non-significant predictors:\n")
+cat("  Telephone\n")
+cat("  Occupation\n")
 cat("=================================================================\n")

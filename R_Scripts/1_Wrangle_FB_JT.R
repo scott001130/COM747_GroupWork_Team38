@@ -1,7 +1,7 @@
 # =============================================================================
 # CRISP-DM: Data Wrangling
 # German Credit — "What factors most influence credit default risk?"
-# Initial Script to begin ML process (script 1)
+# Initial Script to begin ML process
 # Objects expected: Data/german.data
 # =============================================================================
 

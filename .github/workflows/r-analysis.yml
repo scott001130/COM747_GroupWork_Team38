@@ -17,7 +17,6 @@ permissions:
 
 jobs:
   run-analysis:
-    # Prevent a commit made by the workflow itself from re-running unnecessarily
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
 
@@ -63,6 +62,7 @@ jobs:
             any::kernlab
             any::rpart
             any::tidyr
+            any::class
 
       - name: Ensure outputs directory exists
         run: mkdir -p outputs
@@ -70,12 +70,12 @@ jobs:
       - name: Run full analysis pipeline
         shell: Rscript {0}
         run: |
-          source("R_Scripts/german_credit_wrangle_JT.R")
-          source("R_Scripts/german_credit_data_prep_FB.R")
-          source("R_Scripts/german_credit_modelling_FB.R")
-          source("R_Scripts/german_credit_models_JP.R")
-          source("R_Scripts/german_credit_fairness_JP.R")
-          source("R_Scripts/german_credit_synthesis_FB.R")
+          source("R_Scripts/1_Wrangle_FB_JT.R")
+          source("R_Scripts/2_Data_Prep_FB_JT.R")
+          source("R_Scripts/3_Modelling_FB_SH.R")
+          source("R_Scripts/5_Extended_Modelling_JP.R")
+          source("R_Scripts/6_Fairness_JP.R")
+          source("R_Scripts/4_Synthesis_FB_JT.R")
 
       - name: Show outputs
         run: |

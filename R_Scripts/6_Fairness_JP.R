@@ -1,7 +1,7 @@
 # =============================================================================
 # CRISP-DM: Fairness & Bias Analysis
 # German Credit — Does the model treat gender and age groups equitably?
-# Run AFTER germal_credit_modelling_FB.R
+# Run AFTER german_credit_modelling_FB.R
 # =============================================================================
 
 library(dplyr)
@@ -12,6 +12,7 @@ dir.create("outputs", showWarnings = FALSE)
 
 stopifnot(exists("gc_df"), exists("rf_model"), exists("X_test"), exists("y_test"))
 stopifnot(exists("train_idx"))
+stopifnot(exists("rf_roc"))
 
 cat("Fairness analysis: prerequisite check passed.\n\n")
 
@@ -74,14 +75,14 @@ gender_metrics <- calc_subgroup_metrics(test_labels, "gender")
 age_metrics <- calc_subgroup_metrics(test_labels, "age_group")
 
 cat("=================================================================\n")
-cat("SUBGROUP PERFORMANCE — By Gender\n")
+cat("SUBGROUP PERFORMANCE - By Gender\n")
 cat("=================================================================\n")
 print(as.data.frame(gender_metrics))
 cat("\n")
 write.csv(gender_metrics, "outputs/fairness_gender_metrics.csv", row.names = FALSE)
 
 cat("=================================================================\n")
-cat("SUBGROUP PERFORMANCE — By Age Group\n")
+cat("SUBGROUP PERFORMANCE - By Age Group\n")
 cat("=================================================================\n")
 print(as.data.frame(age_metrics))
 cat("\n")
@@ -89,7 +90,7 @@ write.csv(age_metrics, "outputs/fairness_age_metrics.csv", row.names = FALSE)
 
 # fairness metrics
 cat("=================================================================\n")
-cat("FAIRNESS METRICS — Gender\n")
+cat("FAIRNESS METRICS - Gender\n")
 cat("=================================================================\n")
 
 cat("\n1. Demographic Parity (selection rate should be similar):\n")
@@ -100,7 +101,7 @@ dp_ratio <- min(gender_metrics$selection_rate) / max(gender_metrics$selection_ra
 cat("   Ratio (closer to 1 = fairer):", round(dp_ratio, 3), "\n")
 
 if (dp_ratio < 0.8) {
-  cat("   WARNING: Ratio below 0.8 — potential adverse impact (4/5ths rule)\n")
+  cat("   WARNING: Ratio below 0.8 - potential adverse impact (4/5ths rule)\n")
 } else {
   cat("   Passes the 4/5ths rule threshold\n")
 }
@@ -125,7 +126,7 @@ write.csv(gender_precision, "outputs/fairness_gender_precision.csv", row.names =
 
 # calibration
 cat("=================================================================\n")
-cat("CALIBRATION CHECK — Actual vs Predicted Bad Rates\n")
+cat("CALIBRATION CHECK - Actual vs Predicted Bad Rates\n")
 cat("=================================================================\n\n")
 
 calibration <- test_labels %>%
@@ -156,7 +157,7 @@ p1 <- ggplot(gender_metrics, aes(x = gender, y = selection_rate, fill = gender))
   theme(legend.position = "none") +
   labs(
     title = "Selection rate by gender (proportion predicted Bad)",
-    subtitle = "German Credit — Random Forest model",
+    subtitle = "German Credit - Random Forest model",
     x = NULL, y = "Selection Rate"
   )
 print(p1)
@@ -188,7 +189,7 @@ p3 <- ggplot(age_metrics, aes(x = age_group, y = accuracy, fill = age_group)) +
   theme(legend.position = "none") +
   labs(
     title = "Model accuracy by age group",
-    subtitle = "German Credit — Random Forest model",
+    subtitle = "German Credit - Random Forest model",
     x = NULL, y = "Accuracy"
   )
 print(p3)
@@ -219,7 +220,6 @@ p4 <- ggplot(age_long, aes(x = age_group, y = rate, fill = type)) +
 print(p4)
 ggsave("outputs/fairness_actual_vs_predicted_age.png", plot = p4, width = 8, height = 5, dpi = 300)
 
-# summary csv
 fairness_summary <- data.frame(
   male_selection_rate = gender_metrics$selection_rate[gender_metrics$gender == "Male"],
   female_selection_rate = gender_metrics$selection_rate[gender_metrics$gender == "Female"],

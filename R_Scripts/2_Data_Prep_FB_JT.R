@@ -212,7 +212,7 @@ p_cor <- ggplot(cor_melted, aes(x = Var1, y = Var2, fill = value)) +
     legend.position = "right"
   ) +
   labs(
-    title = "Pearson correlation matrix — numeric features",
+    title = "Pearson correlation matrix - numeric features",
     subtitle = "German Credit dataset (n = 1,000)"
   )
 
@@ -225,11 +225,6 @@ ggsave(
   height = 6,
   dpi = 300
 )
-
-gc_df %>%
-  select(loan_duration_mths, credit_amount, age_yrs, target_bad) %>%
-  cor() %>%
-  round(3)
 
 # -----------------------------------------------------------------------------
 # 3. STRATIFIED TRAIN / TEST SPLIT
@@ -316,6 +311,45 @@ train_enc <- minmax_scale(train_enc, numeric_feats, train_mins, train_ranges)
 test_enc <- minmax_scale(test_enc, numeric_feats, train_mins, train_ranges)
 
 cat("Numeric scaling done:", length(numeric_feats), "features → [0, 1] range\n\n")
+
+# -----------------------------------------------------------------------------
+# 6b. REMOVE NEAR-ZERO VARIANCE FEATURES
+# -----------------------------------------------------------------------------
+
+DEBUG_MODE <- FALSE
+
+predictor_cols <- setdiff(names(train_enc), target_col)
+nzv <- nearZeroVar(train_enc[, predictor_cols, drop = FALSE])
+
+if (length(nzv) > 0) {
+  nzv_names <- predictor_cols[nzv]
+
+  cat("Removing", length(nzv_names), "near-zero variance predictor features:\n")
+  print(nzv_names)
+
+  write.csv(
+    data.frame(feature = nzv_names),
+    "outputs/near_zero_variance_features.csv",
+    row.names = FALSE
+  )
+
+  if (DEBUG_MODE) {
+    nzv_metrics <- nearZeroVar(
+      train_enc[, predictor_cols, drop = FALSE],
+      saveMetrics = TRUE
+    )
+    print(nzv_metrics[nzv_metrics$nzv == TRUE, ])
+  }
+
+  train_enc <- train_enc[, !names(train_enc) %in% nzv_names, drop = FALSE]
+  test_enc <- test_enc[, !names(test_enc) %in% nzv_names, drop = FALSE]
+} else {
+  write.csv(
+    data.frame(feature = character(0)),
+    "outputs/near_zero_variance_features.csv",
+    row.names = FALSE
+  )
+}
 
 # -----------------------------------------------------------------------------
 # 7. SEPARATE FEATURES AND TARGET

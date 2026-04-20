@@ -1,13 +1,14 @@
 # =============================================================================
 # CRISP-DM: Extended Modelling & Model Comparison
-# German Credit — SVM, Decision Tree, SMOTE, Cross-Validation
-# Run AFTER germal_credit_modelling_FB.R
+# German Credit — SVM, Decision Tree, KNN, SMOTE, Cross-Validation
+# Run AFTER german_credit_modelling_FB.R
 # =============================================================================
 
 library(caret)
 library(smotefamily)
 library(e1071)
 library(rpart)
+library(class)
 library(pROC)
 library(ggplot2)
 
@@ -16,6 +17,8 @@ dir.create("outputs", showWarnings = FALSE)
 stopifnot(exists("X_train"), exists("y_train"), exists("X_test"), exists("y_test"))
 stopifnot(exists("lr_probs"), exists("rf_probs"))
 stopifnot(exists("lr_roc"), exists("rf_roc"))
+stopifnot(exists("rf_model"))
+stopifnot(exists("test_df"))
 
 cat("Prerequisite check passed.\n")
 cat("Training set:", nrow(X_train), "rows |",
@@ -152,6 +155,35 @@ dt_roc <- roc(test_df$target_bad, dt_probs, quiet = TRUE)
 cat("Test AUC:", round(auc(dt_roc), 3), "\n")
 
 # =============================================================================
+# KNN
+# =============================================================================
+
+cat("\nTraining KNN with 10-fold CV...\n")
+
+set.seed(42)
+knn_model <- train(
+  x = X_train_bal,
+  y = y_train_bal,
+  method = "knn",
+  metric = "ROC",
+  trControl = ctrl,
+  tuneGrid = expand.grid(k = seq(3, 25, by = 2)),
+  preProcess = NULL
+)
+
+cat("KNN — CV ROC:", round(max(knn_model$results$ROC), 3), "\n")
+cat("Best k:", knn_model$bestTune$k, "\n")
+
+knn_probs <- predict(knn_model, newdata = X_test_clean, type = "prob")[, "Bad"]
+knn_pred <- predict(knn_model, newdata = X_test_clean)
+
+cat("\n--- KNN ---\n")
+print(confusionMatrix(knn_pred, y_test, positive = "Bad"))
+
+knn_roc <- roc(test_df$target_bad, knn_probs, quiet = TRUE)
+cat("Test AUC:", round(auc(knn_roc), 3), "\n")
+
+# =============================================================================
 # MODEL COMPARISON TABLE
 # =============================================================================
 
@@ -178,13 +210,14 @@ comparison_table <- rbind(
   extract_metrics(rf_pred, y_test, rf_roc, "Random Forest"),
   extract_metrics(svm_linear_pred, y_test, svm_linear_roc, "SVM (Linear)"),
   extract_metrics(svm_radial_pred, y_test, svm_radial_roc, "SVM (Radial)"),
-  extract_metrics(dt_pred, y_test, dt_roc, "Decision Tree")
+  extract_metrics(dt_pred, y_test, dt_roc, "Decision Tree"),
+  extract_metrics(knn_pred, y_test, knn_roc, "KNN")
 )
 
 comparison_table <- comparison_table[order(-comparison_table$AUC), ]
 
 cat("\n=================================================================\n")
-cat("MODEL COMPARISON — All classifiers on test set (n = 300)\n")
+cat("MODEL COMPARISON - All classifiers on test set (n = 300)\n")
 cat("=================================================================\n\n")
 print(comparison_table, row.names = FALSE)
 cat("\n")
@@ -197,13 +230,14 @@ write.csv(comparison_table, "outputs/model_comparison_table.csv", row.names = FA
 
 png("outputs/roc_all_models.png", width = 1200, height = 900, res = 150)
 plot(lr_roc, col = "#534AB7", lwd = 2,
-     main = "ROC curves — all models (German Credit test set)",
+     main = "ROC curves - all models (German Credit test set)",
      xlab = "False positive rate (1 - Specificity)",
      ylab = "True positive rate (Sensitivity)")
 plot(rf_roc,         col = "#1D9E75", lwd = 2, add = TRUE)
 plot(svm_linear_roc, col = "#D85A30", lwd = 2, add = TRUE)
 plot(svm_radial_roc, col = "#2196F3", lwd = 2, add = TRUE)
 plot(dt_roc,         col = "#FF9800", lwd = 2, add = TRUE)
+plot(knn_roc,        col = "#800080", lwd = 2, add = TRUE)
 abline(a = 0, b = 1, lty = 2, col = "gray70")
 
 legend("bottomright", cex = 0.8,
@@ -212,9 +246,10 @@ legend("bottomright", cex = 0.8,
          paste0("Random Forest       (AUC = ", round(auc(rf_roc), 3), ")"),
          paste0("SVM Linear          (AUC = ", round(auc(svm_linear_roc), 3), ")"),
          paste0("SVM Radial          (AUC = ", round(auc(svm_radial_roc), 3), ")"),
-         paste0("Decision Tree       (AUC = ", round(auc(dt_roc), 3), ")")
+         paste0("Decision Tree       (AUC = ", round(auc(dt_roc), 3), ")"),
+         paste0("KNN                 (AUC = ", round(auc(knn_roc), 3), ")")
        ),
-       col = c("#534AB7", "#1D9E75", "#D85A30", "#2196F3", "#FF9800"),
+       col = c("#534AB7", "#1D9E75", "#D85A30", "#2196F3", "#FF9800", "#800080"),
        lwd = 2)
 dev.off()
 
@@ -247,10 +282,10 @@ cat("AUC (original):", round(auc(rf_roc), 3), "\n\n")
 cm_orig <- confusionMatrix(rf_pred, y_test, positive = "Bad")
 cm_bal <- confusionMatrix(rf_bal_pred, y_test, positive = "Bad")
 
-cat("Sensitivity (Bad recall) — original:", round(cm_orig$byClass["Sensitivity"], 3), "\n")
-cat("Sensitivity (Bad recall) — SMOTE:   ", round(cm_bal$byClass["Sensitivity"], 3), "\n")
-cat("Specificity (Good recall) — original:", round(cm_orig$byClass["Specificity"], 3), "\n")
-cat("Specificity (Good recall) — SMOTE:   ", round(cm_bal$byClass["Specificity"], 3), "\n")
+cat("Sensitivity (Bad recall) - original:", round(cm_orig$byClass["Sensitivity"], 3), "\n")
+cat("Sensitivity (Bad recall) - SMOTE:   ", round(cm_bal$byClass["Sensitivity"], 3), "\n")
+cat("Specificity (Good recall) - original:", round(cm_orig$byClass["Specificity"], 3), "\n")
+cat("Specificity (Good recall) - SMOTE:   ", round(cm_bal$byClass["Specificity"], 3), "\n")
 
 smote_impact <- data.frame(
   Model = c("RF Original", "RF SMOTE"),
