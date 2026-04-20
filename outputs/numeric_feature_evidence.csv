@@ -1,0 +1,4 @@
+"feature","p_value","sig","statistic_type","statistic_value"
+"loan_duration_mths",0,"***","Pearson r",0.215
+"credit_amount",0,"***","Pearson r",0.155
+"age_yrs",0.0039,"**","Pearson r",-0.091

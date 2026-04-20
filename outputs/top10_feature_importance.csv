@@ -1,11 +1,11 @@
 "feature","MeanDecreaseAccuracy"
-"account_status",26.5458889658943
-"loan_duration_mths",12.046296183608
-"credit_history",11.056980837298
-"property",7.74906845369792
-"credit_amount",6.55095297328392
-"savings",6.25223151648358
-"age_yrs",6.01264421258641
-"other_debtors_Guarantor",4.47293974637564
-"other_debtors_Co-applicant",4.32833894755035
-"loan_purpose_Car (used)",3.16730384254826
+"account_status",26.6597549296434
+"loan_duration_mths",15.4434447148599
+"credit_history",12.8305154605736
+"property",11.4868943284095
+"credit_amount",10.2442499262047
+"age_yrs",7.5343333882525
+"other_debtors_Guarantor",6.39670672003099
+"savings",3.95512201593267
+"marital_status_Male married/widowed",3.88311691974444
+"employment_duration",3.60312208622187
