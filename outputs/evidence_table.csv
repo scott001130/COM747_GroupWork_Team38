@@ -9,9 +9,9 @@
 "employment_duration",0.001,"**","Chi-square",18.368,3.60312208622187
 "occupation",0.5966,"","Chi-square",1.885,0.532462854326058
 "housing",1e-04,"***","Chi-square",18.2,NA
-"loan_purpose",1e-04,"***","Fisher (Monte Carlo)",NA,NA
+"loan_purpose",3e-04,"***","Fisher (Monte Carlo)",NA,NA
 "other_installment_plans",0.0016,"**","Chi-square",12.839,NA
 "foreign_worker",0.0158,"*","Chi-square",5.822,NA
-"marital_status",0.0232,"*","Fisher (Monte Carlo)",NA,NA
+"marital_status",0.0241,"*","Fisher (Monte Carlo)",NA,NA
 "other_debtors",0.0361,"*","Chi-square",6.645,NA
 "telephone",0.2789,"","Chi-square",1.173,NA

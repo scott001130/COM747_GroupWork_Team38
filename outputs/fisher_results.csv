@@ -1,3 +1,3 @@
 "feature","method","p_value","sig"
-"loan_purpose","Fisher (Monte Carlo)",1e-04,"***"
-"marital_status","Fisher (Monte Carlo)",0.0232,"*"
+"loan_purpose","Fisher (Monte Carlo)",3e-04,"***"
+"marital_status","Fisher (Monte Carlo)",0.0241,"*"
