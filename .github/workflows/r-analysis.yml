@@ -51,6 +51,7 @@ jobs:
             any::reshape2
             any::smotefamily
             any::e1071
+            any::kernlab
             any::rpart
             any::tidyr
 
