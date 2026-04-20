@@ -1,2 +1,2 @@
 "Model","Threshold","Accuracy","Sensitivity","Specificity","Precision","F1","AUC"
-"Logistic Regression Tuned Threshold",0.38,0.72,0.573,0.782,0.526,0.548,0.702
+"Logistic Regression Tuned Threshold",0.31,0.703,0.697,0.706,0.5,0.582,0.748

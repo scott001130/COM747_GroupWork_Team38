@@ -1,14 +1,17 @@
-"feature","chi_sq","p_value","sig","MeanDecreaseAccuracy"
-"account_status",123.721,0,"***",26.5458889658943
-"credit_history",61.691,0,"***",11.056980837298
-"property",23.72,0,"***",7.74906845369792
-"savings",36.099,0,"***",6.25223151648358
-"employment_duration",18.368,0.001,"**",2.30355575820281
-"occupation",1.885,0.5966,"",0.464433362517368
-"foreign_worker",5.822,0.0158,"*",NA
-"housing",18.2,1e-04,"***",NA
-"loan_purpose",NA,1e-04,"***",NA
-"marital_status",NA,0.0249,"*",NA
-"other_debtors",6.645,0.0361,"*",NA
-"other_installment_plans",12.839,0.0016,"**",NA
-"telephone",1.173,0.2789,"",NA
+"feature","p_value","sig","statistic_type","statistic_value","MeanDecreaseAccuracy"
+"account_status",0,"***","Chi-square",123.721,26.6597549296434
+"loan_duration_mths",0,"***","Pearson r",0.215,15.4434447148599
+"credit_history",0,"***","Chi-square",61.691,12.8305154605736
+"property",0,"***","Chi-square",23.72,11.4868943284095
+"credit_amount",0,"***","Pearson r",0.155,10.2442499262047
+"age_yrs",0.0039,"**","Pearson r",-0.091,7.5343333882525
+"savings",0,"***","Chi-square",36.099,3.95512201593267
+"employment_duration",0.001,"**","Chi-square",18.368,3.60312208622187
+"occupation",0.5966,"","Chi-square",1.885,0.532462854326058
+"housing",1e-04,"***","Chi-square",18.2,NA
+"loan_purpose",1e-04,"***","Fisher (Monte Carlo)",NA,NA
+"other_installment_plans",0.0016,"**","Chi-square",12.839,NA
+"foreign_worker",0.0158,"*","Chi-square",5.822,NA
+"marital_status",0.0232,"*","Fisher (Monte Carlo)",NA,NA
+"other_debtors",0.0361,"*","Chi-square",6.645,NA
+"telephone",0.2789,"","Chi-square",1.173,NA
