@@ -7,8 +7,8 @@
 "occupation",1.885,0.5966,"",0.464433362517368
 "foreign_worker",5.822,0.0158,"*",NA
 "housing",18.2,1e-04,"***",NA
-"loan_purpose",NA,2e-04,"***",NA
-"marital_status",NA,0.0212,"*",NA
+"loan_purpose",NA,1e-04,"***",NA
+"marital_status",NA,0.0249,"*",NA
 "other_debtors",6.645,0.0361,"*",NA
 "other_installment_plans",12.839,0.0016,"**",NA
 "telephone",1.173,0.2789,"",NA
