@@ -1,0 +1,6 @@
+"savings","n","bad_rate"
+">= 1000 DM",48,0.125
+"Unknown / no savings account",183,0.175
+"500 to < 1000 DM",63,0.175
+"100 to < 500 DM",103,0.33
+"< 100 DM",603,0.36

@@ -1,0 +1,14 @@
+"feature","chi_sq","df","p_value","sig"
+"account_status",123.721,3,0,"***"
+"credit_history",61.691,4,0,"***"
+"savings",36.099,4,0,"***"
+"property",23.72,3,0,"***"
+"housing",18.2,2,1e-04,"***"
+"employment_duration",18.368,4,0.001,"**"
+"other_installment_plans",12.839,2,0.0016,"**"
+"foreign_worker",5.822,1,0.0158,"*"
+"other_debtors",6.645,2,0.0361,"*"
+"telephone",1.173,1,0.2789,""
+"occupation",1.885,3,0.5966,""
+"loan_purpose",NA,10,NA,NA
+"marital_status",NA,4,NA,NA

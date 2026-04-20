@@ -1,0 +1,5 @@
+"","loan_duration_mths","credit_amount","age_yrs","target_bad"
+"loan_duration_mths",1,0.625,-0.036,0.215
+"credit_amount",0.625,1,0.033,0.155
+"age_yrs",-0.036,0.033,1,-0.091
+"target_bad",0.215,0.155,-0.091,1
